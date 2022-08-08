@@ -1,7 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 module variables
   !USE param
   !USE var
@@ -301,7 +328,7 @@ module param
   real(mytype) :: wrotation,ro
   real(mytype) :: dens1, dens2
   real(mytype) :: C_filter
-  character(len=512) :: inflowpath
+  character(len=100) :: inflowpath
 
   ! Logical, true when synchronization is needed
   logical, save :: sync_vel_needed = .true.
@@ -331,7 +358,7 @@ module param
   real(mytype) :: Tref
 
   !! LES modelling flag
-  integer :: ilesmod, iwall
+  integer :: ilesmod
 
   !LES
   integer :: jles
@@ -355,8 +382,8 @@ module param
   logical :: ibirman_eos
 
   !! ABL
-  integer :: iwallmodel, iPressureGradient, imassconserve, ibuoyancy, iStrat, iCoriolis, idamping, iheight, itherm, iconcprec, ishiftedper
-  real(mytype) :: z_zero, k_roughness, u_shear, ustar, dBL, CoriolisFreq, TempRate, TempFlux, gravv, T_wall, T_top, pdl
+  integer :: iconserv, iPressureGradient, imassconserve, ibuoyancy, iStrat, iCoriolis, idamping, iheight, itherm, iconcprec, ishiftedper, iterrain, ioutputabl
+  real(mytype) :: z_zero, k_roughness, u_shear, ustar, dBL, CoriolisFreq, TempRate, TempFlux, gravv, T_wall, T_top, pdl, hibm, hmax, rad, chx, chz
   real(mytype), dimension(3) :: UG
   real(mytype), save, allocatable, dimension(:,:) :: Tstat
   real(mytype), save, allocatable, dimension(:,:) :: PsiM, PsiH

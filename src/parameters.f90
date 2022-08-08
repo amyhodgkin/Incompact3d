@@ -1,7 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 !###########################################################################
 !
 !  SUBROUTINE: parameter
@@ -57,7 +84,7 @@ subroutine parameter(input_i3d)
        nclxS1, nclxSn, nclyS1, nclySn, nclzS1, nclzSn, &
        scalar_lbound, scalar_ubound, sc_even, sc_skew, &
        alpha_sc, beta_sc, g_sc, Tref
-  NAMELIST /LESModel/ jles, smagcst, smagwalldamp, nSmag, walecst, maxdsmagcst, iwall
+  NAMELIST /LESModel/ jles, smagcst, smagwalldamp, nSmag, walecst, maxdsmagcst, iconserv
   NAMELIST /WallModel/ smagwalldamp
   NAMELIST /Tripping/ itrip,A_tr,xs_tr_tbl,ys_tr_tbl,ts_tr_tbl,x0_tr_tbl
   NAMELIST /ibmstuff/ cex,cey,cez,ra,nobjmax,nraf,nvol,iforces, npif, izap, ianal, imove, thickness, chord, omega ,ubcx,ubcy,ubcz,rads, c_air
@@ -65,9 +92,10 @@ subroutine parameter(input_i3d)
   NAMELIST /LMN/ dens1, dens2, prandtl, ilmn_bound, ivarcoeff, ilmn_solve_temp, &
        massfrac, mol_weight, imultispecies, primary_species, &
        Fr, ibirman_eos
-  NAMELIST /ABL/ z_zero, iwallmodel, k_roughness, ustar, dBL, &
+  NAMELIST /ABL/ z_zero, k_roughness, ustar, dBL, &
        imassconserve, ibuoyancy, iPressureGradient, iCoriolis, CoriolisFreq, &
-       istrat, idamping, iheight, TempRate, TempFlux, itherm, gravv, UG, T_wall, T_top, ishiftedper, iconcprec, pdl 
+       istrat, idamping, iheight, TempRate, TempFlux, itherm, gravv, UG, T_wall, &
+       T_top, ishiftedper, iconcprec, pdl, iterrain, ioutputabl, hibm, hmax, rad, chx, chz 
   NAMELIST /CASE/ tgv_twod, pfront
   NAMELIST/ALMParam/iturboutput,NTurbines,TurbinesPath,NActuatorlines,ActuatorlinesPath,eps_factor,rho_air
   NAMELIST/ADMParam/Ndiscs,ADMcoords,C_T,aind,iturboutput,rho_air
@@ -203,6 +231,9 @@ subroutine parameter(input_i3d)
   if (iturbine.eq.1) then
      read(10, nml=ALMParam); rewind(10)
   else if (iturbine.eq.2) then
+     read(10, nml=ADMParam); rewind(10)
+  else if (iturbine.eq.3) then
+     read(10, nml=ALMParam); rewind(10)
      read(10, nml=ADMParam); rewind(10)
   endif
   ! read(10, nml=TurbulenceWallModel)
@@ -583,8 +614,9 @@ subroutine parameter_defaults()
   datapath = './data/'
 
   !! LES stuff
-  SmagWallDamp=0
+  SmagWallDamp=1
   nSmag=1
+  iconserv=1
 
   !! IBM stuff
   nraf = 0
@@ -632,7 +664,6 @@ subroutine parameter_defaults()
   ustar=0.45_mytype
   dBL=250._mytype
   iPressureGradient=1
-  iwallmodel=1
   imassconserve=0
   ibuoyancy=1
   iheight=0
@@ -648,6 +679,14 @@ subroutine parameter_defaults()
   !! Turbine modelling
   iturbine=0
   rho_air=one
+  !! Complex Terrain
+  iterrain=1
+  hibm=0.03125_mytype
+  hmax=0.04_mytype
+  rad=0.1_mytype
+  chx=1.0625_mytype
+  chz=1.0625_mytype
+  iterrain=0
 
   !! IO
   ivisu = 1

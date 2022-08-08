@@ -1,6 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 
 module stats
 
@@ -8,8 +36,6 @@ module stats
 
   character(len=*), parameter :: io_statistics = "statistics-io", &
        stat_dir = "statistics"
-
-  integer :: stats_time
   
   private
   public overall_statistic
@@ -73,6 +99,7 @@ contains
     use var, only : uvmean, uwmean
     use var, only : vwmean
     use var, only : phimean, phiphimean
+    use var, only : txymean
 
     implicit none
 
@@ -87,6 +114,7 @@ contains
     uvmean = zero
     uwmean = zero
     vwmean = zero
+    txymean = zero
     if (iscalar==1) then
       phimean = zero
       phiphimean = zero
@@ -102,13 +130,13 @@ contains
   subroutine restart_statistic
 
     use param, only : initstat, irestart, ifirst, zero
-    use variables, only : nstat
+    use variables, only : nvisu
     use var, only : tmean
 
     implicit none
 
-    ! No reading for statistics when nstat > 1 or no restart
-    if (nstat.gt.1 .or. irestart.eq.0) then
+    ! No reading for statistics when nvisu > 1 or no restart
+    if (nvisu.gt.1 .or. irestart.eq.0) then
        call init_statistic()
        initstat = ifirst
        return
@@ -127,13 +155,15 @@ contains
 
   function gen_statname(stat) result(newname)
 
+    use param, only : itime
+
     implicit none
     
     character(len=*), intent(in) :: stat
     character(len=30) :: newname
     
 #ifndef ADIOS2
-    write(newname, "(A,'.dat',I7.7)") stat, stats_time
+    write(newname, "(A,'.dat',I7.7)") stat, itime
 #else
     write(newname, *) stat
 #endif
@@ -157,6 +187,7 @@ contains
     use var, only : uvmean, uwmean
     use var, only : vwmean
     use var, only : phimean, phiphimean
+    use var, only : txymean
 
     implicit none
 
@@ -175,15 +206,14 @@ contains
         it = itime - 1
     else
         it = itime
-     endif
-     stats_time = it
+    endif
 
     if (nrank==0) then
       print *,'==========================================================='
       if (flag_read) then
-        print *,'Reading stat file', stats_time
+        print *,'Reading stat file', it
       else
-        print *,'Writing stat file', stats_time
+        print *,'Writing stat file', it
       endif
     endif
 
@@ -209,6 +239,8 @@ contains
     call read_or_write_one_stat(flag_read, gen_statname("uvmean"), uvmean)
     call read_or_write_one_stat(flag_read, gen_statname("uwmean"), uwmean)
     call read_or_write_one_stat(flag_read, gen_statname("vwmean"), vwmean)
+    
+    call read_or_write_one_stat(flag_read, gen_statname("txymean"), txymean)
 
     if (iscalar==1) then
        do is=1, numscalar
@@ -252,17 +284,17 @@ contains
 
     if (flag_read) then
        ! There was a check for nvisu = 1 before
-       call decomp_2d_read_one(1, array, stat_dir, filename, io_statistics, reduce_prec=.false.)
+       call decomp_2d_read_one(1, array, stat_dir, filename, io_statistics)
     else
-       call decomp_2d_write_one(1, array, stat_dir, filename, 1, io_statistics, reduce_prec=.false.)
-    endif
+      call decomp_2d_write_one(1, array, stat_dir, filename, 1, io_statistics)
+   endif
 
   end subroutine read_or_write_one_stat
 
   !
   ! Statistics : Intialize, update and perform IO
   !
-  subroutine overall_statistic(ux1,uy1,uz1,phi1,pp3,ep1)
+  subroutine overall_statistic(ux1,uy1,uz1,phi1,pp3,ep1,txy1)
 
     use param
     use variables
@@ -283,6 +315,7 @@ contains
     use var, only : uvmean, uwmean
     use var, only : vwmean
     use var, only : phimean, phiphimean
+    use var, only : txymean
 
     implicit none
 
@@ -290,6 +323,7 @@ contains
     real(mytype),dimension(xsize(1),xsize(2),xsize(3)),intent(in) :: ux1,uy1,uz1,ep1
     real(mytype),dimension(xsize(1),xsize(2),xsize(3),numscalar),intent(in) :: phi1
     real(mytype),dimension(ph1%zst(1):ph1%zen(1),ph1%zst(2):ph1%zen(2),nzmsize,npress) :: pp3
+    real(mytype),dimension(xsize(1),xsize(2),xsize(3)),intent(in) :: txy1
 
     !! Locals
     integer :: is
@@ -326,6 +360,10 @@ contains
     !! Second-order velocity moments
     call update_variance_vector(uumean, vvmean, wwmean, uvmean, uwmean, vwmean, &
                                 ux1, uy1, uz1, ep1)
+    
+    !! SGS stresses 
+    call update_average_scalar(txymean, txy1, ep1)
+
 
     !! Scalar statistics
     if (iscalar==1) then
@@ -358,11 +396,11 @@ contains
     ! inputs
     real(mytype), intent(in) :: var, ep1
 
-    if (iibm==2) then
-      one_minus_ep1 = (one - ep1) * var
-    else
+    !if (iibm==2) then
+    !  one_minus_ep1 = (one - ep1) * var
+    !else
       one_minus_ep1 = var
-    endif
+    !endif
 
   end function one_minus_ep1
 

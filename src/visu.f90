@@ -1,7 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 module visu
   
   implicit none
@@ -17,14 +44,14 @@ module visu
   !        3 for 2D output with Z average
   integer, save :: output2D
   integer :: ioxdmf
-  character(len=9) :: ifilenameformat = '(I3.3)'
+  character(len=9) :: ifilenameformat = '(I4.4)'
   real, save :: tstart, tend
 
   character(len=*), parameter :: io_name = "solution-io"
 
   private
   public :: output2D, visu_init, visu_ready, visu_finalise, write_snapshot, end_snapshot, &
-       write_field, io_name, gen_filename
+       write_field, io_name
 
 contains
 
@@ -106,39 +133,35 @@ contains
   !
   subroutine visu_ready ()
 
-    use decomp_2d_io, only : decomp_2d_open_io, decomp_2d_append_mode, decomp_2d_write_mode, gen_iodir_name
+    use decomp_2d_io, only : decomp_2d_open_io, decomp_2d_append_mode, decomp_2d_write_mode
 
-    use param, only : irestart
-    
     implicit none
 
     integer :: mode
     
 #ifdef ADIOS2
-    logical, save :: outloc_init
-    logical :: dir_exists
     
     mode = decomp_2d_write_mode
 
-    ! XXX: A fix was applied to ADIOS2.7.1 series to prevent corrupting files when appended from Fortran
-    if (.not.outloc_init) then
-       if (irestart == 1) then
-          !! Restarting - is the output already available to write to?
-          inquire(file=gen_iodir_name("data", io_name), exist=dir_exists)
-          if (dir_exists) then
-             outloc_init = .true.
-          end if
-       end if
+    ! XXX: Currently opening BP4 files in append mode seems to corrupt data.
+    ! if (.not.outloc_init) then
+    !    if (irestart == 1) then
+    !       !! Restarting - is the output already available to write to?
+    !       inquire(file=gen_iodir_name("data", io_name), exist=dir_exists)
+    !       if (dir_exists) then
+    !          outloc_init = .true.
+    !       end if
+    !    end if
        
-       if (.not.outloc_init) then !! Yes, yes, but check the restart check above.
-          mode = decomp_2d_write_mode
-       else
-          mode = decomp_2d_append_mode
-       end if
-       outloc_init = .true.
-    else
-       mode = decomp_2d_append_mode
-    end if
+    !    if (.not.outloc_init) then !! Yes, yes, but check the restart check above.
+    !       mode = decomp_2d_write_mode
+    !    else
+    !       mode = decomp_2d_append_mode
+    !    end if
+    !    outloc_init = .true.
+    ! else
+    !    mode = decomp_2d_append_mode
+    ! end if
 
     call decomp_2d_open_io(io_name, "data", mode)
 #endif
@@ -235,6 +258,7 @@ contains
     call write_field(ux1, ".", "ux", trim(num))
     call write_field(uy1, ".", "uy", trim(num))
     call write_field(uz1, ".", "uz", trim(num))
+    call write_field(ep1, ".", "epsi", trim(num),.true.)
 
     ! Interpolate pressure
     !WORK Z-PENCILS

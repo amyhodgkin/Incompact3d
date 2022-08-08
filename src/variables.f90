@@ -1,6 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 
 module var
 
@@ -19,17 +47,18 @@ module var
   real(mytype), save, allocatable, dimension(:,:,:) :: divu3
   real(mytype), save, allocatable, dimension(:,:,:,:) :: phi1, phi2, phi3
   real(mytype), save, allocatable, dimension(:,:,:) :: px1, py1, pz1
-  real(mytype), save, allocatable, dimension(:,:,:) :: ep1, diss1, pre1
+  real(mytype), save, allocatable, dimension(:,:,:) :: ep1, diss1, pre1 
   real(mytype), save, allocatable, dimension(:,:,:,:) :: dux1,duy1,duz1  ! Output of convdiff
   real(mytype), save, allocatable, dimension(:,:,:,:,:) :: dphi1
   real(mytype), save, allocatable, dimension(:,:,:) :: mu1,mu2,mu3
   real(mytype), save, allocatable, dimension(:,:,:) :: uxf1, uxf2, uxf3, uyf1, uyf2, uyf3, uzf1, uzf2, uzf3, phif1, phif2, phif3
+  real(mytype), save, allocatable, dimension(:,:,:) :: txy1
 
   !arrays for post processing
   real(mytype), save, allocatable, dimension(:,:,:) :: f1,fm1
 
   !arrays for statistic collection
-  real(mytype), save, allocatable, dimension(:,:,:) :: umean,vmean,wmean,pmean,uumean,vvmean,wwmean,uvmean,uwmean,vwmean,tmean
+  real(mytype), save, allocatable, dimension(:,:,:) :: umean,vmean,wmean,pmean,uumean,vvmean,wwmean,uvmean,uwmean,vwmean,tmean,txymean
   real(mytype), save, allocatable, dimension(:,:,:,:) :: phimean,phiphimean,uphimean,vphimean,wphimean
 
   !arrays for visualization
@@ -67,6 +96,7 @@ module var
 
   ! working arrays for ABL
   real(mytype), save, allocatable, dimension(:,:) :: heatflux
+  real(mytype), save, allocatable, dimension(:,:,:) :: wmnode
 
   ! arrays for turbine modelling
   real(mytype), save, allocatable, dimension(:,:,:) :: FTx, FTy, FTz, Fdiscx, Fdiscy, Fdiscz
@@ -126,6 +156,8 @@ contains
     diss1 = zero
     call alloc_x(pre1, opt_global=.true.) !global indices
     pre1 = zero
+    call alloc_x(txy1, opt_global=.true.) !global indices
+    txy1 = zero
 
     allocate(phi1(xstart(1):xend(1),xstart(2):xend(2),xstart(3):xend(3),1:numscalar)) !global indices
     phi1 = zero
@@ -295,6 +327,9 @@ contains
     allocate (tmean(xstS(1):xenS(1),xstS(2):xenS(2),xstS(3):xenS(3)))
     tmean=zero
 
+    allocate (txymean(xstS(1):xenS(1),xstS(2):xenS(2),xstS(3):xenS(3)))
+    txymean=zero
+    
     !Y PENCILS
     call alloc_y(ux2)
     ux2=zero
@@ -1300,14 +1335,16 @@ contains
     dphi1=zero
     
     !! ABL
-    allocate(heatflux(xsize(1),xsize(3)))
+    allocate(heatflux(ysize(1),ysize(3)))
     heatflux = zero
-    allocate(PsiM(xsize(1),xsize(3)))
+    allocate(PsiM(ysize(1),ysize(3)))
     PsiM = zero
-    allocate(PsiH(xsize(1),xsize(3)))
+    allocate(PsiH(ysize(1),ysize(3)))
     PsiH = zero
-    allocate(Tstat(xsize(2),1))
+    allocate(Tstat(ysize(2),1))
     Tstat = zero
+    allocate(wmnode(xsize(1),xsize(2),xsize(3)))
+    wmnode=zero
 
     !! Turbine Modelling
     if (iturbine.eq.1) then
@@ -1326,7 +1363,22 @@ contains
        Fdiscz = zero
        allocate(Gammadisc(xsize(1),xsize(2),xsize(3),Ndiscs))
        Gammadisc = zero
-    endif
+    else if (iturbine.eq.3) then
+       allocate(FTx(xsize(1),xsize(2),xsize(3)))
+       FTx = zero
+       allocate(FTy(xsize(1),xsize(2),xsize(3)))
+       FTy = zero
+       allocate(FTz(xsize(1),xsize(2),xsize(3)))
+       FTz = zero
+       allocate(Fdiscx(xsize(1),xsize(2),xsize(3)))
+       Fdiscx = zero
+       allocate(Fdiscy(xsize(1),xsize(2),xsize(3)))
+       Fdiscy = zero
+       allocate(Fdiscz(xsize(1),xsize(2),xsize(3)))
+       Fdiscz = zero
+       allocate(Gammadisc(xsize(1),xsize(2),xsize(3),Ndiscs))
+       Gammadisc = zero       
+     endif
 
     !! LMN
     if (.not.ilmn) then

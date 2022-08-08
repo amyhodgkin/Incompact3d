@@ -1,6 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 
 program xcompact3d
 
@@ -45,12 +73,12 @@ program xcompact3d
 
         if (imove.eq.1) then ! update epsi for moving objects
           if ((iibm.eq.2).or.(iibm.eq.3)) then
-             call genepsi3d(ep1)
+             call genepsi3d(ep1,wmnode)
           else if (iibm.eq.1) then
              call body(ux1,uy1,uz1,ep1)
           endif
         endif
-        call calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3)
+        call calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
 #ifdef DEBG
         call check_transients()
 #endif
@@ -80,9 +108,7 @@ program xcompact3d
      call restart(ux1,uy1,uz1,dux1,duy1,duz1,ep1,pp3(:,:,:,1),phi1,dphi1,px1,py1,pz1,rho1,drho1,mu1,1)
 
      call simu_stats(3)
-
-     call postprocessing(rho1,ux1,uy1,uz1,pp3,phi1,ep1)
-
+     call postprocessing(rho1,ux1,uy1,uz1,pp3,phi1,ep1,txy1)
   enddo !! End time loop
 
   call finalise_xcompact3d()
@@ -192,9 +218,9 @@ subroutine init_xcompact3d()
   endif
 
   if ((iibm.eq.2).or.(iibm.eq.3)) then
-     call genepsi3d(ep1)
+     call genepsi3d(ep1,wmnode)
   else if (iibm.eq.1) then
-     call epsi_init(ep1)
+     call epsi_init(ep1,wmnode)
      call body(ux1,uy1,uz1,ep1)
   endif
 
@@ -233,7 +259,7 @@ subroutine init_xcompact3d()
   end if
 
   if ((iibm.eq.2).or.(iibm.eq.3)) then
-     call genepsi3d(ep1)
+     call genepsi3d(ep1,wmnode)
   else if ((iibm.eq.1).or.(iibm.eq.3)) then
      call body(ux1,uy1,uz1,ep1)
   endif
@@ -272,10 +298,9 @@ subroutine finalise_xcompact3d()
   use decomp_2d_io, only : decomp_2d_io_finalise
 
   use tools, only : simu_stats
-  use param, only : itype, jles, ilesmod
+  use param, only : itype
   use probes, only : finalize_probes
   use visu, only : visu_finalise
-  use les, only: finalise_explicit_les
 
   implicit none
 
@@ -295,9 +320,6 @@ subroutine finalise_xcompact3d()
   call simu_stats(4)
   call finalize_probes()
   call visu_finalise()
-  if (ilesmod.ne.0) then
-     if (jles.gt.0) call finalise_explicit_les()
-  endif
   call decomp_2d_io_finalise()
   call decomp_2d_finalize
   CALL MPI_FINALIZE(ierr)

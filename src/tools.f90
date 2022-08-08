@@ -1,7 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 module tools
 
   implicit none
@@ -643,7 +670,7 @@ contains
     real(mytype), dimension(NTimeSteps,xsize(2),xsize(3)) :: ux1,uy1,uz1
     character(20) :: fninflow
 
-    character(len=1024) :: inflow_file
+    character(80) :: inflow_file
     
     ! Recirculate inflows 
     if (ifileinflow>=ninflows) then 
@@ -660,15 +687,13 @@ contains
     if (nrank==0) print *,'READING INFLOW FROM ',inflow_file
     
     call decomp_2d_open_io(io_ioflow, inflow_file, decomp_2d_read_mode)
+    call decomp_2d_start_io(io_ioflow, inflow_file)
 
-    !! XXX: we don't use streaming I/O here - no start/end I/O step!
-    
-    call decomp_2d_set_io_step(io_ioflow, inflow_file, ifileinflow)
-    
     call decomp_2d_read_inflow(inflow_file,"ux",ntimesteps,ux_inflow,io_ioflow)
     call decomp_2d_read_inflow(inflow_file,"uy",ntimesteps,uy_inflow,io_ioflow)
     call decomp_2d_read_inflow(inflow_file,"uz",ntimesteps,uz_inflow,io_ioflow)
 
+    call decomp_2d_end_io(io_ioflow, inflow_file)
     call decomp_2d_close_io(io_ioflow, inflow_file)
 
   end subroutine read_inflow
@@ -718,23 +743,12 @@ contains
     logical, save :: clean = .true.
     integer :: iomode
 
-    logical :: dir_exists
-
-#ifdef ADIOS2
     if (clean .and. (irestart .eq. 0)) then
        iomode = decomp_2d_write_mode
        clean = .false.
     else
-       inquire(file=gen_iodir_name("./out/inflow", io_ioflow), exist=dir_exists)
-       if (dir_exists) then
-          iomode = decomp_2d_append_mode
-       else
-          iomode = decomp_2d_write_mode
-       end if
+       iomode = decomp_2d_append_mode
     end if
-#else
-    iomode = decomp_2d_write_mode
-#endif
     
     write(fnoutflow,'(i20)') ifileoutflow
 #ifndef ADIOS2

@@ -1,7 +1,34 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
+!################################################################################
+!This file is part of Xcompact3d.
+!
+!Xcompact3d
+!Copyright (c) 2012 Eric Lamballais and Sylvain Laizet
+!eric.lamballais@univ-poitiers.fr / sylvain.laizet@gmail.com
+!
+!    Xcompact3d is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation.
+!
+!    Xcompact3d is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with the code.  If not, see <http://www.gnu.org/licenses/>.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!    We kindly request that you cite Xcompact3d/Incompact3d in your
+!    publications and presentations. The following citations are suggested:
+!
+!    1-Laizet S. & Lamballais E., 2009, High-order compact schemes for
+!    incompressible flows: a simple and efficient method with the quasi-spectral
+!    accuracy, J. Comp. Phys.,  vol 228 (15), pp 5989-6015
+!
+!    2-Laizet S. & Li N., 2011, Incompact3d: a powerful tool to tackle turbulence
+!    problems with up to 0(10^5) computational cores, Int. J. of Numerical
+!    Methods in Fluids, vol 67 (11), pp 1735-1757
+!################################################################################
 module transeq
 
   private
@@ -14,7 +41,7 @@ contains
   !! DESCRIPTION: Calculates the right hand sides of all transport
   !!              equations - momentum, scalar transport, etc.
   !############################################################################
-  subroutine calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3)
+  subroutine calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
 
     use decomp_2d, only : mytype, xsize, zsize
     use variables, only : numscalar
@@ -26,16 +53,17 @@ contains
     real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: ux1, uy1, uz1
     real(mytype), dimension(xsize(1), xsize(2), xsize(3), nrhotime), intent(in) :: rho1
     real(mytype), dimension(xsize(1), xsize(2), xsize(3), numscalar), intent(in) :: phi1
-    real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: ep1
+    real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: ep1, wmnode
     real(mytype), dimension(zsize(1), zsize(2), zsize(3)), intent(in) :: divu3
 
     !! Outputs
     real(mytype), dimension(xsize(1), xsize(2), xsize(3), ntime) :: dux1, duy1, duz1
     real(mytype), dimension(xsize(1), xsize(2), xsize(3), ntime) :: drho1
     real(mytype), dimension(xsize(1), xsize(2), xsize(3), ntime, numscalar) :: dphi1
+    real(mytype), dimension(xsize(1), xsize(2), xsize(3)) :: txy1 
 
     !! Momentum equations
-    call momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3)
+    call momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
 
     !! Scalar equations
     !! XXX Not yet LMN!!!
@@ -62,7 +90,7 @@ contains
   !!
   !############################################################################
   !############################################################################
-  subroutine momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3)
+  subroutine momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
 
     use param
     use variables
@@ -84,13 +112,14 @@ contains
     implicit none
 
     !! INPUTS
-    real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1,ep1
+    real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1,ep1,wmnode
     real(mytype),dimension(xsize(1),xsize(2),xsize(3),numscalar) :: phi1
     real(mytype),intent(in),dimension(xsize(1),xsize(2),xsize(3),nrhotime) :: rho1
     real(mytype),intent(in),dimension(zsize(1),zsize(2),zsize(3)) :: divu3
 
     !! OUTPUTS
     real(mytype),dimension(xsize(1),xsize(2),xsize(3),ntime) :: dux1,duy1,duz1
+    real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: txy1
 
 #ifdef DEBG 
     real(mytype) avg_param
@@ -491,11 +520,8 @@ contains
     ! If LES modelling is enabled, add the SGS stresses
     if (ilesmod.ne.0.and.jles.le.3.and.jles.gt.0) then
        ! Wall model for LES
-       if (iwall.eq.1) then
-          call compute_SGS(sgsx1,sgsy1,sgsz1,ux1,uy1,uz1,phi1,ep1,1)
-       else
-          call compute_SGS(sgsx1,sgsy1,sgsz1,ux1,uy1,uz1,phi1,ep1,0)
-       endif
+       call compute_SGS(sgsx1,sgsy1,sgsz1,ux1,uy1,uz1,phi1,ep1,wmnode,txy1)
+       
        ! Calculate SGS stresses (conservative/non-conservative formulation)
        dux1(:,:,:,1) = dux1(:,:,:,1) + sgsx1(:,:,:)
        duy1(:,:,:,1) = duy1(:,:,:,1) + sgsy1(:,:,:)
@@ -558,6 +584,10 @@ contains
        dux1(:,:,:,1)=dux1(:,:,:,1)+Fdiscx(:,:,:)/rho_air
        duy1(:,:,:,1)=duy1(:,:,:,1)+Fdiscy(:,:,:)/rho_air
        duz1(:,:,:,1)=duz1(:,:,:,1)+Fdiscz(:,:,:)/rho_air
+    else if (iturbine.eq.3) then
+       dux1(:,:,:,1)=dux1(:,:,:,1)+(FTx(:,:,:)+Fdiscx)/rho_air
+       duy1(:,:,:,1)=duy1(:,:,:,1)+(FTy(:,:,:)+Fdiscy)/rho_air
+       duz1(:,:,:,1)=duz1(:,:,:,1)+(FTz(:,:,:)+Fdiscz)/rho_air       
     endif
 #ifdef DEBG
     avg_param = zero

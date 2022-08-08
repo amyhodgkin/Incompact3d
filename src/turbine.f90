@@ -1,7 +1,3 @@
-!Copyright (c) 2012-2022, Xcompact3d
-!This file is part of Xcompact3d (xcompact3d.com)
-!SPDX-License-Identifier: BSD 3-Clause
-
 module turbine
 
 contains
@@ -28,6 +24,10 @@ contains
          call actuator_line_model_init(Nturbines,Nactuatorlines,TurbinesPath,ActuatorlinesPath,dt)
          call initialize_actuator_source
       else if (iturbine.eq.2) then
+         call actuator_disc_model_init(Ndiscs,admCoords,C_T,aind)
+      else if (iturbine.eq.3) then
+         call actuator_line_model_init(Nturbines,Nactuatorlines,TurbinesPath,ActuatorlinesPath,dt)
+         call initialize_actuator_source
          call actuator_disc_model_init(Ndiscs,admCoords,C_T,aind)
       endif
 
@@ -56,6 +56,10 @@ contains
          call actuator_line_model_update(t,dt)
       else if (iturbine.eq.2) then
          call actuator_disc_model_compute_source(ux1,uy1,uz1)
+      else if (iturbine.eq.3) then
+         call Compute_Momentum_Source_Term_pointwise
+         call actuator_line_model_update(t,dt)
+         call actuator_disc_model_compute_source(ux1,uy1,uz1)
       endif
 
     end subroutine compute_turbines
@@ -78,11 +82,14 @@ contains
             call actuator_line_model_write_output(itime/iturboutput)
          else if (iturbine.eq.2) then
             call actuator_disc_model_write_output(itime/iturboutput)
+         else if (iturbine.eq.3) then
+            call actuator_line_model_write_output(itime/iturboutput)
+            call actuator_line_model_write_output(itime/iturboutput)
          endif
       endif
 
       if (nrank==0.and.mod(itime,icheckpoint)==0) then
-         if (iturbine.eq.1) then
+         if (iturbine.eq.1.or.iturbine.eq.3) then
             call actuator_line_model_write_restart()
          endif
       endif
