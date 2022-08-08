@@ -41,7 +41,11 @@ contains
   !! DESCRIPTION: Calculates the right hand sides of all transport
   !!              equations - momentum, scalar transport, etc.
   !############################################################################
+<<<<<<< HEAD
   subroutine calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
+=======
+  subroutine calculate_transeq_rhs(drho1,dux1,duy1,duz1,dphi1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode)
+>>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
 
     use decomp_2d, only : mytype, xsize, zsize
     use variables, only : numscalar
@@ -63,7 +67,11 @@ contains
     real(mytype), dimension(xsize(1), xsize(2), xsize(3)) :: txy1 
 
     !! Momentum equations
+<<<<<<< HEAD
     call momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
+=======
+    call momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode)
+>>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
 
     !! Scalar equations
     !! XXX Not yet LMN!!!
@@ -90,7 +98,11 @@ contains
   !!
   !############################################################################
   !############################################################################
+<<<<<<< HEAD
   subroutine momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode,txy1)
+=======
+  subroutine momentum_rhs_eq(dux1,duy1,duz1,rho1,ux1,uy1,uz1,ep1,phi1,divu3,wmnode)
+>>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
 
     use param
     use variables
@@ -520,7 +532,11 @@ contains
     ! If LES modelling is enabled, add the SGS stresses
     if (ilesmod.ne.0.and.jles.le.3.and.jles.gt.0) then
        ! Wall model for LES
+<<<<<<< HEAD
        call compute_SGS(sgsx1,sgsy1,sgsz1,ux1,uy1,uz1,phi1,ep1,wmnode,txy1)
+=======
+       call compute_SGS(sgsx1,sgsy1,sgsz1,ux1,uy1,uz1,phi1,ep1,wmnode)
+>>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
        
        ! Calculate SGS stresses (conservative/non-conservative formulation)
        dux1(:,:,:,1) = dux1(:,:,:,1) + sgsx1(:,:,:)
