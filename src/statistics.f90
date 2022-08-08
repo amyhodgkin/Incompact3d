@@ -240,11 +240,8 @@ contains
     call read_or_write_one_stat(flag_read, gen_statname("uwmean"), uwmean)
     call read_or_write_one_stat(flag_read, gen_statname("vwmean"), vwmean)
     
-<<<<<<< HEAD
     call read_or_write_one_stat(flag_read, gen_statname("txymean"), txymean)
 
-=======
->>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
     if (iscalar==1) then
        do is=1, numscalar
           call read_or_write_one_stat(flag_read, gen_statname(filename), phimean(:,:,:,is))
@@ -364,13 +361,10 @@ contains
     call update_variance_vector(uumean, vvmean, wwmean, uvmean, uwmean, vwmean, &
                                 ux1, uy1, uz1, ep1)
     
-<<<<<<< HEAD
     !! SGS stresses 
     call update_average_scalar(txymean, txy1, ep1)
 
 
-=======
->>>>>>> 20d1a4458862824b56158cc729785f885edc70a6
     !! Scalar statistics
     if (iscalar==1) then
        do is=1, numscalar
